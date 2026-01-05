@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Iuran Warga</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+
+<h2>💰 Iuran Bulanan Warga</h2>
+<div id="list"></div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbwbS2prkLU2LG4e-nTmbilffjAzcHXfpiW1EWMw4Z7gQLqWbg5Z2dLkPAf4lBSXusg/exec";
+
+fetch(API_URL)
+  .then(res => res.json())
+  .then(data => {
+    const list = document.getElementById("list");
+
+    data.slice(1).forEach(row => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <strong>${row[1]}</strong><br>
+        Total: Rp ${row[5].toLocaleString()}
+      `;
+      list.appendChild(card);
+    });
+  });
+</script>
+
+</body>
+</html>
