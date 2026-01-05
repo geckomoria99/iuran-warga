@@ -1,47 +1,521 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>Iuran Warga</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      padding: 20px;
-    }
-    .card {
-      background: white;
-      padding: 15px;
-      margin-bottom: 10px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>E-Murai - Sistem Manajemen Perumahan</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Facebook-like background */
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Hide scrollbar for clean horizontal scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .nav-item.active {
+            color: #1877F2; /* Facebook Blue */
+        }
+        
+        /* Animation for tab switching */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Card styles */
+        .card {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1rem;
+        }
+
+        /* Floating Action Button */
+        .fab {
+            box-shadow: 0 4px 12px rgba(24, 119, 242, 0.4);
+            transition: transform 0.2s;
+        }
+        .fab:active {
+            transform: scale(0.95);
+        }
+        
+        /* Loading Skeleton Animation */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
 </head>
-<body>
+<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
 
-<h2>💰 Iuran Bulanan Warga</h2>
-<div id="list"></div>
+    <!-- Top Header (Mobile & Desktop) -->
+    <header class="bg-white shadow-sm z-20 flex-none">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                    <i class="fa-solid fa-house-chimney"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-blue-600 tracking-tight">E-Murai</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="connection-status" class="w-3 h-3 rounded-full bg-yellow-400 animate-pulse" title="Menghubungkan ke Database..."></div>
+                <div class="w-10 h-10 bg-gray-300 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="User" class="w-full h-full">
+                </div>
+            </div>
+        </div>
+    </header>
 
-<script>
-const API_URL = "https://script.google.com/macros/s/AKfycbxqScCGr324yqdentk6duGiqU682eQqxKnDVOv6yHEJFsnkxQix4FFCyjYmrljj30o/exec";
+    <div class="flex flex-1 overflow-hidden max-w-7xl mx-auto w-full">
+        
+        <!-- Desktop Sidebar (Hidden on Mobile) -->
+        <aside class="hidden md:flex flex-col w-64 bg-white border-r h-full p-4 gap-2">
+            <button onclick="switchTab('home')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 font-medium transition active-tab" data-target="home">
+                <i class="fa-solid fa-house w-6 text-center"></i> Beranda
+            </button>
+            <button onclick="switchTab('finance')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 font-medium transition" data-target="finance">
+                <i class="fa-solid fa-wallet w-6 text-center"></i> Kas & Iuran
+            </button>
+            <button onclick="switchTab('ronda')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 font-medium transition" data-target="ronda">
+                <i class="fa-solid fa-shield-halved w-6 text-center"></i> Jadwal Ronda
+            </button>
+            <button onclick="switchTab('agenda')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 font-medium transition" data-target="agenda">
+                <i class="fa-solid fa-calendar-days w-6 text-center"></i> Agenda Kegiatan
+            </button>
+            <div class="mt-auto pt-4 border-t">
+                 <button class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 font-medium transition w-full">
+                    <i class="fa-solid fa-right-from-bracket w-6 text-center"></i> Keluar
+                </button>
+            </div>
+        </aside>
 
-fetch(API_URL)
-  .then(res => res.json())
-  .then(data => {
-    const list = document.getElementById("list");
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto no-scrollbar pb-24 md:pb-6 relative bg-[#f0f2f5]">
+            
+            <!-- SECTION: HOME / DASHBOARD -->
+            <section id="home" class="page-section p-4 md:p-6 space-y-6">
+                <!-- Welcome Widget -->
+                <div class="card p-6 bg-gradient-to-r from-blue-600 to-blue-500 text-white border-none">
+                    <h2 class="text-2xl font-bold mb-2">Halo, Warga Murai! 👋</h2>
+                    <p class="opacity-90">Selamat datang di aplikasi warga. Data diambil real-time dari Spreadsheet.</p>
+                </div>
 
-    data.slice(1).forEach(row => {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `
-        <strong>${row[1]}</strong><br>
-        Total: Rp ${row[5].toLocaleString()}
-      `;
-      list.appendChild(card);
-    });
-  });
-</script>
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="card p-4 flex flex-col items-center justify-center text-center">
+                        <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-2">
+                            <i class="fa-solid fa-money-bill-wave"></i>
+                        </div>
+                        <span class="text-xs text-gray-500 uppercase font-semibold">Saldo Kas</span>
+                        <span class="text-lg font-bold text-gray-800" id="total-cash">Loading...</span>
+                    </div>
+                    <div class="card p-4 flex flex-col items-center justify-center text-center">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mb-2">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <span class="text-xs text-gray-500 uppercase font-semibold">Ronda Malam Ini</span>
+                        <span class="text-lg font-bold text-gray-800" id="tonight-ronda">Loading...</span>
+                    </div>
+                </div>
 
+                <!-- News Feed (Facebook Style) -->
+                <div class="max-w-2xl mx-auto space-y-4">
+                    <h3 class="font-bold text-gray-600 px-1">Pengumuman Terbaru</h3>
+                    <div id="feed-container">
+                        <!-- Loading Skeletons -->
+                        <div class="card p-4 space-y-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full skeleton"></div>
+                                <div class="w-32 h-4 rounded skeleton"></div>
+                            </div>
+                            <div class="w-full h-24 rounded skeleton"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: FINANCE -->
+            <section id="finance" class="page-section hidden p-4 md:p-6 space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-800">Laporan Keuangan</h2>
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+                        <i class="fa-solid fa-download mr-1"></i> Export
+                    </button>
+                </div>
+
+                <!-- Balance Card -->
+                <div class="card p-6 border-l-4 border-blue-600">
+                    <p class="text-gray-500 text-sm font-medium">Total Kas Saat Ini</p>
+                    <h3 class="text-3xl font-bold text-gray-900 mt-1" id="finance-total-balance">Loading...</h3>
+                </div>
+
+                <!-- Transaction List -->
+                <div class="card overflow-hidden">
+                    <div class="bg-gray-50 px-4 py-3 border-b flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-700">Riwayat Transaksi</h3>
+                        <span class="text-xs text-gray-500">Dari Google Sheet</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3">Tanggal</th>
+                                    <th class="px-4 py-3">Keterangan</th>
+                                    <th class="px-4 py-3">Tipe</th>
+                                    <th class="px-4 py-3 text-right">Jumlah</th>
+                                </tr>
+                            </thead>
+                            <tbody id="finance-table-body">
+                                <tr>
+                                    <td colspan="4" class="px-4 py-8 text-center text-gray-500">Sedang memuat data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: RONDA -->
+            <section id="ronda" class="page-section hidden p-4 md:p-6 space-y-6">
+                <h2 class="text-2xl font-bold text-gray-800">Jadwal Ronda</h2>
+                
+                <div class="card p-4 bg-orange-50 border border-orange-100">
+                    <div class="flex items-start gap-3">
+                        <i class="fa-solid fa-circle-exclamation text-orange-500 mt-1"></i>
+                        <div>
+                            <h4 class="font-bold text-orange-800">Aturan Ronda</h4>
+                            <p class="text-sm text-orange-700 mt-1">Wajib lapor di grup WhatsApp pukul 23:00 dan 03:00.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid gap-4" id="ronda-container">
+                    <div class="card p-4 text-center text-gray-500">Sedang memuat data...</div>
+                </div>
+            </section>
+
+            <!-- SECTION: AGENDA -->
+            <section id="agenda" class="page-section hidden p-4 md:p-6 space-y-6">
+                <h2 class="text-2xl font-bold text-gray-800">Agenda Kegiatan</h2>
+                <div id="agenda-container" class="space-y-4">
+                     <div class="card p-4 text-center text-gray-500">Sedang memuat data...</div>
+                </div>
+            </section>
+
+            <!-- Floating Action Button (Mobile Only) -->
+            <button class="md:hidden fixed bottom-20 right-4 w-14 h-14 bg-blue-600 rounded-full text-white flex items-center justify-center fab z-40" onclick="alert('Untuk menambah data, silakan edit langsung di Google Spreadsheet.')">
+                <i class="fa-solid fa-pen text-xl"></i>
+            </button>
+        </main>
+    </div>
+
+    <!-- Mobile Bottom Navigation (Facebook Style) -->
+    <nav class="md:hidden fixed bottom-0 w-full bg-white border-t border-gray-200 z-30 pb-safe">
+        <div class="grid grid-cols-4 h-16">
+            <button onclick="switchTab('home')" class="nav-item active flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition" data-target="home">
+                <div class="relative">
+                    <i class="fa-solid fa-house text-xl mb-1"></i>
+                </div>
+                <span class="text-[10px] font-medium">Beranda</span>
+            </button>
+            <button onclick="switchTab('finance')" class="nav-item flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition" data-target="finance">
+                <i class="fa-solid fa-wallet text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Kas</span>
+            </button>
+            <button onclick="switchTab('ronda')" class="nav-item flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition" data-target="ronda">
+                <i class="fa-solid fa-shield-halved text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Ronda</span>
+            </button>
+            <button onclick="switchTab('agenda')" class="nav-item flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition" data-target="agenda">
+                <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Agenda</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+        // GANTI BAGIAN INI DENGAN ID SPREADSHEET ANDA
+        // Contoh ID: 1aBcDeFgHiJkLmNoPqRsTuVwXyZ
+        const SPREADSHEET_ID = '2PACX-1vSuh_gTlLe86D-4Usnt7tOdTmCAln6Tp0jK3KgcuBzrEnQmdjGKLMBRinosD5YHfV2YQic3G0_GuXEd'; // <--- GANTI ID INI
+        
+        // --- 2. DATA FETCHING LOGIC ---
+        
+        async function fetchSheetData(sheetName) {
+            const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}&t=${Date.now()}`;
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Network error');
+                const csvText = await response.text();
+                return csvToJson(csvText);
+            } catch (error) {
+                console.error(`Gagal mengambil data dari sheet ${sheetName}:`, error);
+                return [];
+            }
+        }
+
+        function csvToJson(csv) {
+            const lines = csv.split('\n');
+            const result = [];
+            
+            // Remove quotes/double quotes handled simply for this use case
+            // A more robust parser would use regex, but this works for standard GSheet CSV
+            const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i]) continue;
+                
+                // Handle split by comma but ignoring commas inside quotes
+                const currentline = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                
+                // If regex fails (simple fallback), use basic split
+                const fallbackSplit = lines[i].split(',');
+                
+                const obj = {};
+                const rowData = currentline || fallbackSplit;
+
+                headers.forEach((header, index) => {
+                    let val = rowData[index] || '';
+                    // Clean up Google CSV formatting quotes
+                    val = val.replace(/^"|"$/g, '').replace(/""/g, '"');
+                    obj[header] = val;
+                });
+                result.push(obj);
+            }
+            return result;
+        }
+
+        // --- 3. UI RENDERING FUNCTIONS ---
+
+        function renderFeed(data) {
+            const container = document.getElementById('feed-container');
+            if (data.length === 0) {
+                container.innerHTML = '<div class="text-center p-4 text-gray-500">Belum ada pengumuman.</div>';
+                return;
+            }
+            
+            container.innerHTML = data.map(post => `
+                <div class="card p-4">
+                    <div class="flex items-center mb-3">
+                        <img src="${post.avatar || 'https://ui-avatars.com/api/?name=' + post.author}" class="w-10 h-10 rounded-full mr-3 border border-gray-200">
+                        <div>
+                            <h4 class="font-bold text-gray-900 text-sm">${post.author || 'Admin'}</h4>
+                            <p class="text-xs text-gray-500">${post.time || 'Baru saja'}</p>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-800 mb-3 whitespace-pre-line">${post.content}</div>
+                    ${post.image ? `<div class="rounded-lg overflow-hidden mb-3 border border-gray-100"><img src="${post.image}" class="w-full h-auto object-cover max-h-64" onerror="this.style.display='none'"></div>` : ''}
+                    <div class="flex items-center justify-between text-gray-500 text-sm border-t pt-2 mt-2">
+                        <button class="flex items-center gap-1 hover:text-blue-600"><i class="fa-regular fa-thumbs-up"></i> Suka</button>
+                        <button class="flex items-center gap-1 hover:text-blue-600"><i class="fa-regular fa-comment"></i> Komentar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderFinance(data) {
+            let totalBalance = 0;
+            
+            // Calculate total and Sort by Date (Descending - newest first)
+            // Assuming date format is DD MMM YYYY or similar. Simple sort here.
+            data.forEach(item => {
+                const amount = parseInt(item.amount) || 0;
+                if(item.type === 'Masuk') totalBalance += amount;
+                else totalBalance -= amount;
+            });
+
+            document.getElementById('total-cash').innerText = `Rp ${totalBalance.toLocaleString('id-ID')}`;
+            document.getElementById('finance-total-balance').innerText = `Rp ${totalBalance.toLocaleString('id-ID')}`;
+            
+            const tbody = document.getElementById('finance-table-body');
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Belum ada data transaksi.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(item => `
+                <tr class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-4 py-3 font-medium text-gray-900">${item.date}</td>
+                    <td class="px-4 py-3">${item.desc}</td>
+                    <td class="px-4 py-3">
+                        <span class="${item.type === 'Masuk' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} text-xs font-medium px-2.5 py-0.5 rounded">
+                            ${item.type}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-right font-bold ${item.type === 'Keluar' ? 'text-red-600' : 'text-green-600'}">
+                        Rp ${Math.abs(item.amount || 0).toLocaleString('id-ID')}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderRonda(data) {
+            // Find tonight's ronda (simple check by day name would require date logic, here we rely on 'status' column from sheet)
+            const activeRonda = data.find(r => r.status === 'active');
+            const tonightLabel = activeRonda ? activeRonda.members : "Tidak ada jadwal";
+            
+            document.getElementById('tonight-ronda').innerText = tonightLabel.length > 20 ? tonightLabel.substring(0,20) + '...' : tonightLabel;
+            
+            const container = document.getElementById('ronda-container');
+            if (data.length === 0) {
+                container.innerHTML = '<div class="text-center p-4">Belum ada jadwal.</div>';
+                return;
+            }
+
+            container.innerHTML = data.map(schedule => `
+                <div class="card p-0 overflow-hidden">
+                    <div class="${schedule.status === 'active' ? 'bg-green-600' : 'bg-blue-600'} text-white px-4 py-2 flex justify-between items-center">
+                        <h3 class="font-bold">${schedule.day}</h3>
+                        ${schedule.status === 'active' ? '<span class="bg-white text-green-600 text-xs px-2 py-1 rounded-full font-bold">Malam Ini</span>' : ''}
+                    </div>
+                    <div class="p-4">
+                        <ul class="space-y-2">
+                            ${(schedule.members || '').split(',').map(member => `
+                                <li class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <span class="text-sm text-gray-700 font-medium">${member.trim()}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderAgenda(data) {
+            const container = document.getElementById('agenda-container');
+            if (data.length === 0) {
+                container.innerHTML = '<div class="text-center p-4">Belum ada agenda.</div>';
+                return;
+            }
+
+            container.innerHTML = data.map(item => `
+                <div class="card flex overflow-hidden">
+                    <div class="w-20 bg-blue-50 flex flex-col items-center justify-center border-r border-blue-100 p-2 text-center">
+                        <span class="text-xs font-bold text-blue-600 uppercase">TGL</span>
+                        <span class="text-xl font-bold text-gray-800">${(item.date || '').split(' ')[0]}</span>
+                    </div>
+                    <div class="p-4 flex-1">
+                        <h4 class="font-bold text-gray-800 mb-1">${item.title}</h4>
+                        <div class="text-sm text-gray-500 flex flex-col gap-1">
+                            <span class="flex items-center gap-2"><i class="fa-regular fa-clock w-4"></i> ${item.time}</span>
+                            <span class="flex items-center gap-2"><i class="fa-solid fa-location-dot w-4"></i> ${item.location}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- 4. NAVIGATION LOGIC ---
+        function switchTab(tabId) {
+            // Hide all sections
+            document.querySelectorAll('.page-section').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('fade-in'); 
+            });
+            
+            // Show target section with animation
+            const targetSection = document.getElementById(tabId);
+            targetSection.classList.remove('hidden');
+            void targetSection.offsetWidth; 
+            targetSection.classList.add('fade-in');
+
+            // Update Desktop Sidebar
+            document.querySelectorAll('.sidebar-item').forEach(el => {
+                if(el.dataset.target === tabId) {
+                    el.classList.add('bg-gray-100', 'text-blue-600');
+                    el.classList.remove('text-gray-700');
+                } else {
+                    el.classList.remove('bg-gray-100', 'text-blue-600');
+                    el.classList.add('text-gray-700');
+                }
+            });
+
+            // Update Mobile Bottom Nav
+            document.querySelectorAll('.nav-item').forEach(el => {
+                if(el.dataset.target === tabId) {
+                    el.classList.add('active', 'text-blue-600');
+                    el.classList.remove('text-gray-500');
+                } else {
+                    el.classList.remove('active', 'text-blue-600');
+                    el.classList.add('text-gray-500');
+                }
+            });
+
+            window.scrollTo(0, 0);
+        }
+
+        // --- 5. INITIALIZATION ---
+        async function initApp() {
+            // Show loading state implicitly by the default HTML content
+            
+            try {
+                // Fetch all data in parallel
+                const [feedData, financeData, rondaData, agendaData] = await Promise.all([
+                    fetchSheetData('FEED'),
+                    fetchSheetData('KAS'),
+                    fetchSheetData('RONDA'),
+                    fetchSheetData('AGENDA')
+                ]);
+
+                // Render all
+                renderFeed(feedData);
+                renderFinance(financeData);
+                renderRonda(rondaData);
+                renderAgenda(agendaData);
+                
+                // Update connection status
+                const statusDot = document.getElementById('connection-status');
+                statusDot.classList.remove('bg-yellow-400', 'animate-pulse');
+                statusDot.classList.add('bg-green-500');
+                statusDot.title = "Terhubung ke Database";
+
+            } catch (e) {
+                console.error("Init Error", e);
+                const statusDot = document.getElementById('connection-status');
+                statusDot.classList.remove('bg-yellow-400', 'animate-pulse');
+                statusDot.classList.add('bg-red-500');
+                statusDot.title = "Gagal Terhubung";
+                alert("Gagal mengambil data. Pastikan ID Spreadsheet benar dan File sudah di 'Publish to Web'.");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initApp();
+            switchTab('home');
+        });
+
+    </script>
 </body>
 </html>
