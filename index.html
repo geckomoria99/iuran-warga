@@ -264,7 +264,7 @@
         // --- 1. KONFIGURASI (Edit Di Sini) ---
         
         // Cukup Copy-Paste URL Lengkap Google Spreadsheet Anda di sini:
-        const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuh_gTlLe86D-4Usnt7tOdTmCAln6Tp0jK3KgcuBzrEnQmdjGKLMBRinosD5YHfV2YQic3G0_GuXEd/pubhtml'; 
+        const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuh_gTlLe86D-4Usnt7tOdTmCAln6Tp0jK3KgcuBzrEnQmdjGKLMBRinosD5YHfV2YQic3G0_GuXEd/pubhtml#gid=1962508131'; 
         
         // --- PENTING: ATURAN NAMA SHEET (TAB) ---
         // Di Google Spreadsheet, Anda WAJIB membuat 4 Tab di bawah dengan nama PERSIS (Huruf Besar):
@@ -284,48 +284,91 @@
         async function fetchSheetData(sheetName) {
             const id = getSheetID(SPREADSHEET_URL);
             if (!id) {
-                console.error("URL Spreadsheet tidak valid!");
+                // Jangan alert di awal, biarkan initApp yang handle
                 return [];
             }
             
-            const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${sheetName}&t=${Date.now()}`;
+            // Encode sheet name handles spaces/special chars if user made mistake
+            const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`;
             
             try {
                 const response = await fetch(url);
-                if (!response.ok) throw new Error('Network error');
+                // GVIZ returns 200 OK even for errors sometimes, but content is HTML error
+                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+                
                 const csvText = await response.text();
+                
+                // Cek jika response adalah HTML Error (Biasanya karena Nama Sheet Salah atau Belum Publish)
+                if (csvText.trim().startsWith('<!DOCTYPE html>') || csvText.includes('Google Docs')) {
+                    throw new Error(`Sheet "${sheetName}" tidak ditemukan atau belum dipublish.`);
+                }
+
                 return csvToJson(csvText);
             } catch (error) {
-                console.error(`Gagal mengambil data dari sheet ${sheetName}:`, error);
-                return [];
+                console.warn(`Gagal ambil sheet ${sheetName}:`, error);
+                // Return null to signal error specifically
+                return null;
             }
         }
 
+        // PARSER CSV KUAT (Menangani koma di dalam kutip & baris baru)
         function csvToJson(csv) {
-            const lines = csv.split('\n');
-            const result = [];
+            const rows = [];
+            let currentRow = [];
+            let currentCell = '';
+            let inQuote = false;
             
-            // Remove quotes/double quotes handled simply for this use case
-            // A more robust parser would use regex, but this works for standard GSheet CSV
-            const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+            // Loop per karakter untuk akurasi tinggi
+            for (let i = 0; i < csv.length; i++) {
+                const char = csv[i];
+                const nextChar = csv[i+1];
+                
+                if (char === '"') {
+                    if (inQuote && nextChar === '"') {
+                        currentCell += '"'; // Double quote jadi satu quote
+                        i++; 
+                    } else {
+                        inQuote = !inQuote;
+                    }
+                } else if (char === ',' && !inQuote) {
+                    currentRow.push(currentCell.trim());
+                    currentCell = '';
+                } else if ((char === '\r' || char === '\n') && !inQuote) {
+                    if (currentCell || currentRow.length > 0) {
+                        currentRow.push(currentCell.trim());
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentCell = '';
+                    if (char === '\r' && nextChar === '\n') i++; // Handle CRLF
+                } else {
+                    currentCell += char;
+                }
+            }
+            // Push sisa buffer
+            if (currentCell || currentRow.length > 0) {
+                currentRow.push(currentCell.trim());
+                rows.push(currentRow);
+            }
 
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i]) continue;
-                
-                // Handle split by comma but ignoring commas inside quotes
-                const currentline = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-                
-                // If regex fails (simple fallback), use basic split
-                const fallbackSplit = lines[i].split(',');
+            if (rows.length < 2) return []; // Header only or empty
+
+            // Ambil Header (Baris 1) & Normalkan ke Huruf Kecil
+            const headers = rows[0].map(h => h.toLowerCase().replace(/^"|"$/g, '').trim());
+            const result = [];
+
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                // Skip baris kosong
+                if (row.length === 0 || (row.length === 1 && row[0] === '')) continue;
                 
                 const obj = {};
-                const rowData = currentline || fallbackSplit;
-
-                headers.forEach((header, index) => {
-                    let val = rowData[index] || '';
-                    // Clean up Google CSV formatting quotes
-                    val = val.replace(/^"|"$/g, '').replace(/""/g, '"');
-                    obj[header] = val;
+                headers.forEach((h, idx) => {
+                    // Mapping header ke value
+                    let val = row[idx] || '';
+                    // Bersihkan sisa quote CSV google
+                    val = val.replace(/^"|"$/g, '');
+                    obj[h] = val;
                 });
                 result.push(obj);
             }
@@ -508,11 +551,16 @@
                     fetchSheetData('AGENDA')
                 ]);
 
-                // Render all
-                renderFeed(feedData);
-                renderFinance(financeData);
-                renderRonda(rondaData);
-                renderAgenda(agendaData);
+                // Validasi Data Kosong/Error
+                if (feedData === null || financeData === null) {
+                    throw new Error("Salah satu sheet tidak ditemukan.");
+                }
+
+                // Render all (dengan fallback array kosong jika data tidak valid tapi bukan error koneksi)
+                renderFeed(feedData || []);
+                renderFinance(financeData || []);
+                renderRonda(rondaData || []);
+                renderAgenda(agendaData || []);
                 
                 // Update connection status
                 const statusDot = document.getElementById('connection-status');
@@ -526,7 +574,14 @@
                 statusDot.classList.remove('bg-yellow-400', 'animate-pulse');
                 statusDot.classList.add('bg-red-500');
                 statusDot.title = "Gagal Terhubung";
-                alert("Gagal mengambil data. Pastikan ID Spreadsheet benar dan File sudah di 'Publish to Web'.");
+                
+                // Pesan Error Lebih Detail untuk User
+                let errorMsg = "Gagal terhubung ke Google Sheet.\n\nPeriksa hal berikut:\n";
+                errorMsg += "1. Apakah URL Spreadsheet sudah dipaste dengan benar?\n";
+                errorMsg += "2. Apakah File sudah di 'File > Share > Publish to web'?\n";
+                errorMsg += "3. Apakah nama Tab sheet (KAS, FEED, dll) sudah HURUF BESAR?";
+                
+                alert(errorMsg);
             }
         }
 
