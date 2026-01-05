@@ -261,15 +261,34 @@
     </nav>
 
     <script>
-        // --- 1. CONFIGURATION ---
-        // GANTI BAGIAN INI DENGAN ID SPREADSHEET ANDA
-        // Contoh ID: 1aBcDeFgHiJkLmNoPqRsTuVwXyZ
-        const SPREADSHEET_ID = '2PACX-1vSuh_gTlLe86D-4Usnt7tOdTmCAln6Tp0jK3KgcuBzrEnQmdjGKLMBRinosD5YHfV2YQic3G0_GuXEd'; // <--- GANTI ID INI
+        // --- 1. KONFIGURASI (Edit Di Sini) ---
         
+        // Cukup Copy-Paste URL Lengkap Google Spreadsheet Anda di sini:
+        const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSuh_gTlLe86D-4Usnt7tOdTmCAln6Tp0jK3KgcuBzrEnQmdjGKLMBRinosD5YHfV2YQic3G0_GuXEd/pubhtml'; 
+        
+        // --- PENTING: ATURAN NAMA SHEET (TAB) ---
+        // Di Google Spreadsheet, Anda WAJIB membuat 4 Tab di bawah dengan nama PERSIS (Huruf Besar):
+        // 1. FEED   (Untuk Pengumuman)
+        // 2. KAS    (Untuk Data Keuangan)
+        // 3. RONDA  (Untuk Jadwal Siskamling)
+        // 4. AGENDA (Untuk Kalender Kegiatan)
+
         // --- 2. DATA FETCHING LOGIC ---
         
+        function getSheetID(url) {
+            // Mengambil ID unik dari URL panjang
+            const matches = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            return matches ? matches[1] : null;
+        }
+
         async function fetchSheetData(sheetName) {
-            const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}&t=${Date.now()}`;
+            const id = getSheetID(SPREADSHEET_URL);
+            if (!id) {
+                console.error("URL Spreadsheet tidak valid!");
+                return [];
+            }
+            
+            const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${sheetName}&t=${Date.now()}`;
             
             try {
                 const response = await fetch(url);
